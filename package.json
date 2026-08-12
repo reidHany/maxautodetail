@@ -1,0 +1,31 @@
+{
+  "name": "maxautodetail",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Auto detailing website built with React, Vite, and a backend stub",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --project tsconfig.json && vite build",
+    "preview": "vite preview",
+    "server": "ts-node-dev --respawn --transpile-only --project tsconfig.server.json server/index.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.19",
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.1"
+  }
+}
