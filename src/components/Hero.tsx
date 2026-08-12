@@ -1,10 +1,21 @@
-export function Hero() {
+interface HeroProps {
+  onBookNow?: () => void;
+}
+
+export function Hero({ onBookNow }: HeroProps) {
   return (
     <section className="hero-section">
       <div className="hero-copy">
-        <p className="eyebrow">Max Auto Detail</p>
-        <h1>Premium car detailing for your ride</h1>
-        <p>From interior shampoo to ceramic coating, we make your vehicle shine again.</p>
+        <p className="eyebrow">StanBrough Sparkle</p>
+        <h1>Elevated automotive detailing with a red-carpet finish.</h1>
+        <p>
+          Precision detailing, premium service, and showroom results delivered with a modern luxury experience.
+        </p>
+        {onBookNow && (
+          <button className="hero-button" type="button" onClick={onBookNow}>
+            Book a Detailing
+          </button>
+        )}
       </div>
     </section>
   );

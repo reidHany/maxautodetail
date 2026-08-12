@@ -1,4 +1,4 @@
-# Max Auto Detail
+# StanBrough Sparkle
 
 React + Vite starter for an auto detailing business website.
 
