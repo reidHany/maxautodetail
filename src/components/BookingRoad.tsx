@@ -22,6 +22,9 @@ export function BookingRoad({ pageSelector = '.booking-page', variant = 'booking
     let journeyStart = 0;
     let journeyDistance = 1;
     let lastProgress = -1;
+    let dragging = false;
+    let dragStartY = 0;
+    let dragStartScrollY = 0;
 
     const buildRoad = () => {
       const pageRect = page.getBoundingClientRect();
@@ -72,16 +75,52 @@ export function BookingRoad({ pageSelector = '.booking-page', variant = 'booking
       if (!rafId) rafId = requestAnimationFrame(draw);
     };
 
+    const startDrag = (event: PointerEvent) => {
+      if (window.innerWidth <= 900 || event.button !== 0) return;
+      dragging = true;
+      dragStartY = event.clientY;
+      dragStartScrollY = window.scrollY;
+      car.classList.add('is-dragging');
+      car.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    };
+
+    const dragCar = (event: PointerEvent) => {
+      if (!dragging) return;
+      // Treat the visible viewport as the scrollbar track. The car still
+      // follows the curves because draw() derives its position from scrollY.
+      const usableTrack = Math.max(180, window.innerHeight - 80);
+      const scrollDelta = (event.clientY - dragStartY) * (journeyDistance / usableTrack);
+      window.scrollTo({ top: dragStartScrollY + scrollDelta, behavior: 'auto' });
+      requestDraw();
+      event.preventDefault();
+    };
+
+    const stopDrag = (event: PointerEvent) => {
+      if (!dragging) return;
+      dragging = false;
+      car.classList.remove('is-dragging');
+      if (car.hasPointerCapture(event.pointerId)) car.releasePointerCapture(event.pointerId);
+    };
+
     const resizeObserver = new ResizeObserver(buildRoad);
     resizeObserver.observe(page);
     window.addEventListener('scroll', requestDraw, { passive: true });
     window.addEventListener('resize', buildRoad, { passive: true });
+    car.addEventListener('pointerdown', startDrag);
+    car.addEventListener('pointermove', dragCar);
+    car.addEventListener('pointerup', stopDrag);
+    car.addEventListener('pointercancel', stopDrag);
     buildRoad();
 
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('scroll', requestDraw);
       window.removeEventListener('resize', buildRoad);
+      car.removeEventListener('pointerdown', startDrag);
+      car.removeEventListener('pointermove', dragCar);
+      car.removeEventListener('pointerup', stopDrag);
+      car.removeEventListener('pointercancel', stopDrag);
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, [pageSelector]);

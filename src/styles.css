@@ -182,7 +182,15 @@ a.button:hover {
   stroke-dasharray: 8 14;
 }
 
-.road-car { transform-box: fill-box; transform-origin: center; }
+.road-car {
+  transform-box: fill-box;
+  transform-origin: center;
+  pointer-events: all;
+  cursor: grab;
+  touch-action: none;
+}
+.road-car.is-dragging { cursor: grabbing; }
+.road-car:hover .car-body { stroke: rgba(255,255,255,.9); stroke-width: 1.5; }
 .car-shadow { fill: rgba(0,0,0,.45); }
 .car-body { fill: url('#car-paint'); stroke: rgba(255,255,255,.52); stroke-width: 1; }
 .car-glass { fill: #101820; stroke: rgba(255,255,255,.18); stroke-width: .8; }
