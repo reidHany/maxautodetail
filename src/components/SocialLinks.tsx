@@ -22,6 +22,70 @@ export function SocialLinks() {
   useEffect(() => {
     const isMobile = window.matchMedia('(max-width: 640px)').matches;
 
+    const setupMobileVideo = (containerRef: React.RefObject<HTMLDivElement | null>) => {
+      const container = containerRef.current;
+      const stage = container?.querySelector<HTMLElement>('.video-stage-inner');
+      const video = container?.querySelector<HTMLVideoElement>('.mobile-sequence-video');
+      if (!container || !stage || !video) return null;
+
+      let rafId = 0;
+      let targetProgress = 0;
+      let renderedProgress = -1;
+      let visible = false;
+
+      const paint = (progress: number) => {
+        const sequenceProgress = Math.max(0, Math.min(1, (progress - 0.02) / 0.96));
+        stage.style.setProperty('--sequence-progress', sequenceProgress.toFixed(4));
+        stage.style.setProperty('--poster-opacity', '0');
+        if (Number.isFinite(video.duration) && video.duration > 0) {
+          const targetTime = Math.min(video.duration - 0.001, sequenceProgress * video.duration);
+          if (Math.abs(video.currentTime - targetTime) > 1 / 60) video.currentTime = targetTime;
+        }
+      };
+
+      const animate = () => {
+        const difference = targetProgress - renderedProgress;
+        renderedProgress = renderedProgress < 0 ? targetProgress : renderedProgress + difference * 0.22;
+        paint(renderedProgress);
+        if (Math.abs(difference) > 0.0005) rafId = requestAnimationFrame(animate);
+        else { renderedProgress = targetProgress; paint(renderedProgress); rafId = 0; }
+      };
+
+      const measure = () => {
+        const rect = container.getBoundingClientRect();
+        const total = rect.height - window.innerHeight;
+        targetProgress = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
+        if (visible && !rafId) rafId = requestAnimationFrame(animate);
+      };
+
+      const observer = new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        if (visible) {
+          // load() starts one sequential, range-enabled request before the user
+          // reaches the pinned portion of the sequence.
+          if (video.readyState < HTMLMediaElement.HAVE_METADATA) video.load();
+          measure();
+        } else if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = 0;
+        }
+      }, { rootMargin: '100% 0px', threshold: 0 });
+
+      observer.observe(container);
+      window.addEventListener('scroll', measure, { passive: true });
+      window.addEventListener('resize', measure, { passive: true });
+      video.addEventListener('loadedmetadata', measure);
+      measure();
+
+      return () => {
+        observer.disconnect();
+        window.removeEventListener('scroll', measure);
+        window.removeEventListener('resize', measure);
+        video.removeEventListener('loadedmetadata', measure);
+        if (rafId) cancelAnimationFrame(rafId);
+      };
+    };
+
     const setupScrubber = async (folder: string, manifestPath: string, canvasRef: React.RefObject<HTMLCanvasElement | null>, containerRef: React.RefObject<HTMLDivElement | null>) => {
       const manifest = await loadManifest(manifestPath);
       const count = (manifest && manifest.frames) || 0;
@@ -209,8 +273,13 @@ export function SocialLinks() {
     let cleanupAfter: (() => void) | null = null;
 
     (async () => {
-      cleanupBefore = await setupScrubber('/social/before_frames', '/social/before_frames/manifest.json', beforeCanvasRef, beforeContainerRef) as any;
-      cleanupAfter = await setupScrubber('/social/after_frames', '/social/after_frames/manifest.json', afterCanvasRef, afterContainerRef) as any;
+      if (isMobile) {
+        cleanupBefore = setupMobileVideo(beforeContainerRef);
+        cleanupAfter = setupMobileVideo(afterContainerRef);
+      } else {
+        cleanupBefore = await setupScrubber('/social/before_frames', '/social/before_frames/manifest.json', beforeCanvasRef, beforeContainerRef) as any;
+        cleanupAfter = await setupScrubber('/social/after_frames', '/social/after_frames/manifest.json', afterCanvasRef, afterContainerRef) as any;
+      }
     })();
 
     return () => {
@@ -233,6 +302,7 @@ export function SocialLinks() {
             <div className="video-stage-inner single before-film">
               <div className="compare-panel">
                 <img className="sequence-poster" src="/social/before_frames/frame_001.jpg" alt="" aria-hidden="true" />
+                <video className="mobile-sequence-video" src="/social/before-mobile.mp4" muted playsInline preload="metadata" aria-label="Before detailing transformation" />
                 <canvas ref={beforeCanvasRef} className="compare-canvas" aria-label="Before image" />
                 <div className="cinematic-vignette" />
               </div>
@@ -250,6 +320,7 @@ export function SocialLinks() {
             <div className="video-stage-inner single after-film">
               <div className="compare-panel">
                 <img className="sequence-poster" src="/social/after_frames/frame_001.jpg" alt="" aria-hidden="true" />
+                <video className="mobile-sequence-video" src="/social/after-mobile.mp4" muted playsInline preload="metadata" aria-label="After detailing transformation" />
                 <canvas ref={afterCanvasRef} className="compare-canvas" aria-label="After image" />
                 <div className="cinematic-vignette" />
               </div>
