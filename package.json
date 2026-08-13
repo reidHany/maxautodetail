@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Auto detailing website built with React, Vite, and a backend stub",
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.5.0 <23"
   },
   "scripts": {
     "dev": "vite",

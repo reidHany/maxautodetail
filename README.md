@@ -46,7 +46,7 @@ that only one customer can reserve each date and time.
 Build and run the combined frontend/API server with:
 
 ```bash
-npm ci
+npm ci --include=dev
 npm run build
 npm start
 ```
