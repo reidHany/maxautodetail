@@ -49,7 +49,16 @@ app.use(cors({
 app.use(express.json({ limit: '32kb' }));
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false }));
 app.use('/api', router);
-app.use(express.static(staticPath));
+app.use(express.static(staticPath, {
+  maxAge: process.env.NODE_ENV === 'production' ? '7d' : 0,
+  setHeaders(res, filePath) {
+    // Vite's hashed bundles can be cached permanently. Sequence frames keep a
+    // shorter cache lifetime because their filenames are intentionally stable.
+    if (process.env.NODE_ENV === 'production' && filePath.includes(`${join('dist', 'assets')}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  },
+}));
 
 app.get('/api/health', (_req, res) => {
   try {

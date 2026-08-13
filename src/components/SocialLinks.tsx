@@ -40,7 +40,15 @@ export function SocialLinks() {
       let targetProgress = 0;
       let renderedProgress = -1;
       let paintedFrame = -1;
+      let desiredFrame = 0;
       let visible = false;
+      let preloadTimer = 0;
+      const frameStep = isMobile ? 2 : 1;
+
+      const frameForProgress = (progress: number) => {
+        const lastPlaybackFrame = Math.floor((count - 1) / frameStep);
+        return Math.min(count - 1, Math.round(progress * lastPlaybackFrame) * frameStep);
+      };
 
       const getRevealProgress = (progress: number) => {
         const zoomIn = Math.min(1, progress / 0.24);
@@ -54,14 +62,28 @@ export function SocialLinks() {
         img.decoding = 'async';
         img.src = `${folder}/frame_${pad(i + 1)}.jpg`;
         img.onload = () => {
-          const wantedFrame = Math.round(Math.max(0, renderedProgress) * (count - 1));
-          if (i === wantedFrame) {
+          if (i === desiredFrame) {
             paintedFrame = -1;
             if (visible && !rafId) rafId = requestAnimationFrame(animate);
           }
         };
         cache.set(i, img);
         return img;
+      };
+
+      const warmMobileFrames = () => {
+        if (!isMobile) return;
+        let nextFrame = 0;
+        const warmBatch = () => {
+          // Small batches prevent a burst of 70+ simultaneous requests while
+          // still filling the browser cache well before playback reaches them.
+          for (let loaded = 0; loaded < 6 && nextFrame < count; loaded += 1) {
+            loadFrame(nextFrame);
+            nextFrame += frameStep;
+          }
+          if (nextFrame < count) preloadTimer = window.setTimeout(warmBatch, 80);
+        };
+        warmBatch();
       };
 
       const resize = (force = false) => {
@@ -106,7 +128,8 @@ export function SocialLinks() {
         // cannot release until the final frame has been reached.
         const sequenceDuration = isMobile ? 0.96 : 0.44;
         const sequenceProgress = Math.max(0, Math.min(1, (progress - sequenceStart) / sequenceDuration));
-        const frame = Math.round(sequenceProgress * (count - 1));
+        const frame = frameForProgress(sequenceProgress);
+        desiredFrame = frame;
         stage?.style.setProperty('--reveal-progress', revealProgress.toFixed(4));
         stage?.style.setProperty('--sequence-progress', sequenceProgress.toFixed(4));
         // Keep the undistorted poster visible throughout the expansion, then
@@ -120,9 +143,9 @@ export function SocialLinks() {
         const img = loadFrame(frame);
         // Keep a small buffer in the likely direction of travel.
         const direction = targetProgress >= renderedProgress ? 1 : -1;
-        const preloadDistance = isMobile ? 2 : 5;
+        const preloadDistance = isMobile ? 3 : 5;
         for (let offset = 1; offset <= preloadDistance; offset += 1) {
-          const nearby = frame + offset * direction;
+          const nearby = frame + offset * direction * frameStep;
           if (nearby >= 0 && nearby < count) loadFrame(nearby);
         }
         if (!img.complete || !img.naturalWidth) return;
@@ -153,6 +176,7 @@ export function SocialLinks() {
       };
 
       loadFrame(0);
+      warmMobileFrames();
       window.addEventListener('scroll', measure, { passive: true });
       const onWindowResize = () => { resize(true); measure(); };
       window.addEventListener('resize', onWindowResize, { passive: true });
@@ -176,6 +200,7 @@ export function SocialLinks() {
         resizeObserver.disconnect();
         window.removeEventListener('scroll', measure);
         window.removeEventListener('resize', onWindowResize);
+        if (preloadTimer) window.clearTimeout(preloadTimer);
         if (rafId) cancelAnimationFrame(rafId);
       };
     };
