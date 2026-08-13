@@ -6,7 +6,7 @@ const services = [
 
 export function Services() {
   return (
-    <section className="services-section">
+    <section className="services-section" id="services">
       <h2>Our Services</h2>
       <div className="service-grid">
         {services.map((service) => (

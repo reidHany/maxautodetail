@@ -3,6 +3,7 @@ import { HomePage } from './pages/HomePage';
 import { BookingPage } from './pages/BookingPage';
 import { AdminPanel } from './components/AdminPanel';
 import { Booking } from './components/RequestForm';
+import { Footer } from './components/Footer';
 
 function App() {
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -39,6 +40,7 @@ function App() {
           </div>
         </section>
       )}
+      {route !== 'admin' && <Footer />}
     </div>
   );
 }

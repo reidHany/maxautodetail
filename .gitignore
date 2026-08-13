@@ -8,3 +8,7 @@ yarn-error.log*
 .vscode
 .idea
 coverage
+
+# Local video-processing tools (download FFmpeg separately when needed)
+tools/ffmpeg/
+tools/ffmpeg.zip
