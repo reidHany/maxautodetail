@@ -1,18 +1,16 @@
-import sgMail from '@sendgrid/mail';
+import 'dotenv/config';
+import { Resend } from 'resend';
 import { Booking } from './types';
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
-const SENDER_EMAIL = process.env.SENDER_EMAIL || '';
-// business notification recipient (defaults to the client email provided)
-const BUSINESS_EMAIL = process.env.BUSINESS_EMAIL || 'stanbrough.sparkle@gmail.com';
-
-if (SENDGRID_API_KEY) {
-  sgMail.setApiKey(SENDGRID_API_KEY);
-}
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const SENDER_EMAIL = process.env.SENDER_EMAIL || 'onboarding@resend.dev';
+const BUSINESS_EMAIL = process.env.BUSINESS_EMAIL || 'reid.hany@gmail.com';
+const BUSINESS_TIME_ZONE = process.env.BUSINESS_TIME_ZONE || 'America/Chicago';
+const resend = new Resend(RESEND_API_KEY);
 
 export async function sendBookingConfirmation(booking: Booking) {
-  if (!SENDGRID_API_KEY || !SENDER_EMAIL) {
-    throw new Error('SendGrid not configured');
+  if (!RESEND_API_KEY) {
+    throw new Error('Resend is not configured. Set RESEND_API_KEY.');
   }
 
   const addressLines = [] as string[];
@@ -21,93 +19,129 @@ export async function sendBookingConfirmation(booking: Booking) {
   const cityStateZip = [booking.city, booking.state, booking.zip].filter(Boolean).join(' ');
   if (cityStateZip) addressLines.push(cityStateZip);
   const address = addressLines.join('\n');
+  const safeName = escapeHtml(booking.name);
+  const safeService = escapeHtml(booking.service);
+  const safeAddress = escapeHtml(address).replace(/\n/g, '<br/>');
+  const safeNotes = booking.notes ? escapeHtml(booking.notes).replace(/\n/g, '<br/>') : '';
+  const transportLabel = booking.transportService
+    ? 'Yes — vehicle pickup and return requested'
+    : 'No';
 
   const customerSubject = `Booking confirmation — ${booking.service} on ${booking.date} at ${booking.time}`;
   const customerHtml = `
-    <p>Hi ${booking.name},</p>
-    <p>Thanks for booking <strong>${booking.service}</strong> with StanBrough Sparkle.</p>
+    <p>Hi ${safeName},</p>
+    <p>Thanks for booking <strong>${safeService}</strong> with Stanbrough Sparkle.</p>
     <p><strong>Date:</strong> ${booking.date}<br/>
     <strong>Time:</strong> ${booking.time}</p>
-    <p><strong>Address:</strong><br/>${address.replace(/\n/g, '<br/>')}</p>
-    ${booking.notes ? `<p><strong>Notes:</strong><br/>${booking.notes}</p>` : ''}
+    <p><strong>Vehicle pickup &amp; return:</strong> ${transportLabel}</p>
+    <p><strong>Address:</strong><br/>${safeAddress}</p>
+    ${booking.transportService ? '<p>We’ll pick up your vehicle from this address and return it after the detail is complete.</p>' : ''}
+    ${safeNotes ? `<p><strong>Notes:</strong><br/>${safeNotes}</p>` : ''}
     <p>You can add this appointment to your calendar using the link in your booking confirmation page.</p>
-    <p>Thanks,<br/>StanBrough Sparkle</p>
+    <p>Thanks,<br/>Stanbrough Sparkle</p>
   `;
 
   const businessSubject = `New booking: ${booking.service} — ${booking.date} ${booking.time}`;
   const businessHtml = `
     <p>New booking received:</p>
     <ul>
-      <li><strong>Name:</strong> ${booking.name}</li>
-      <li><strong>Email:</strong> ${booking.email}</li>
-      <li><strong>Service:</strong> ${booking.service}</li>
+      <li><strong>Name:</strong> ${safeName}</li>
+      <li><strong>Email:</strong> ${escapeHtml(booking.email)}</li>
+      <li><strong>Service:</strong> ${safeService}</li>
       <li><strong>Date:</strong> ${booking.date}</li>
       <li><strong>Time:</strong> ${booking.time}</li>
-      <li><strong>Address:</strong><br/>${address.replace(/\n/g, '<br/>')}</li>
-      ${booking.notes ? `<li><strong>Notes:</strong><br/>${booking.notes}</li>` : ''}
+      <li><strong>Vehicle pickup &amp; return:</strong> ${transportLabel}</li>
+      <li><strong>Address:</strong><br/>${safeAddress}</li>
+      ${safeNotes ? `<li><strong>Notes:</strong><br/>${safeNotes}</li>` : ''}
     </ul>
   `;
 
   // build calendar data (UTC)
-  const start = new Date(`${booking.date}T${booking.time}:00`);
-  const end = new Date(start.getTime() + 60 * 60 * 1000); // default 1 hour
+  const [year, month, day] = booking.date.split('-').map(Number);
+  const [hours, minutes] = booking.time.split(':').map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+  const end = new Date(start.getTime() + booking.durationMinutes * 60 * 1000);
 
-  function toIcsDate(d: Date) {
-    return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-  }
+  const toUtcIcsDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const toLocalIcsDate = (date: Date) => date.toISOString().slice(0, 19).replace(/[-:]/g, '');
 
-  const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//StanBrough Sparkle//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:${booking.id}@stanbrough.sparkle\r\nDTSTAMP:${toIcsDate(new Date())}\r\nDTSTART:${toIcsDate(start)}\r\nDTEND:${toIcsDate(end)}\r\nSUMMARY:${escapeIcs(booking.service)}\r\nDESCRIPTION:${escapeIcs((booking.notes || '') + `\\nCustomer: ${booking.name} <${booking.email}>`)}\r\nLOCATION:${escapeIcs(formatAddressForIcs(booking))}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  const calendarDetails = `Transport service: ${transportLabel}\n${booking.notes || ''}\nCustomer: ${booking.name} <${booking.email}>`;
+  const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Stanbrough Sparkle//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:${booking.id}@stanbrough.sparkle\r\nDTSTAMP:${toUtcIcsDate(new Date())}\r\nDTSTART;TZID=${BUSINESS_TIME_ZONE}:${toLocalIcsDate(start)}\r\nDTEND;TZID=${BUSINESS_TIME_ZONE}:${toLocalIcsDate(end)}\r\nSUMMARY:${escapeIcs(booking.service)}\r\nDESCRIPTION:${escapeIcs(calendarDetails)}\r\nLOCATION:${escapeIcs(formatAddressForIcs(booking))}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
 
   const googleCalendarUrl = buildGoogleCalendarUrl({
     title: booking.service,
-    details: (booking.notes || '') + `\nCustomer: ${booking.name} <${booking.email}>`,
+    details: calendarDetails,
     location: formatAddressForIcs(booking),
     start,
     end,
   });
 
   // send both emails in parallel
+  const calendarAttachment = {
+    filename: 'booking.ics',
+    content: Buffer.from(ics).toString('base64'),
+  };
+
   const customerMsg = {
-    to: booking.email,
+    to: [booking.email],
     from: SENDER_EMAIL,
+    replyTo: BUSINESS_EMAIL,
     subject: customerSubject,
-    html: customerHtml,
-  } as any;
+    html: customerHtml + `<p><a href="${googleCalendarUrl}">Add to Google Calendar</a></p>`,
+    attachments: [calendarAttachment],
+  };
 
   const businessMsg = {
-    to: BUSINESS_EMAIL,
+    to: [BUSINESS_EMAIL],
     from: SENDER_EMAIL,
+    replyTo: booking.email,
     subject: businessSubject,
     html: businessHtml + `<p><a href="${googleCalendarUrl}">Add to Google Calendar</a></p>`,
-    attachments: [
-      {
-        content: Buffer.from(ics).toString('base64'),
-        filename: 'booking.ics',
-        type: 'text/calendar',
-        disposition: 'attachment',
-      },
-    ],
-  } as any;
+    attachments: [calendarAttachment],
+  };
 
-  // also attach ICS to customer email
-  customerMsg.attachments = [
-    {
-      content: Buffer.from(ics).toString('base64'),
-      filename: 'booking.ics',
-      type: 'text/calendar',
-      disposition: 'attachment',
-    },
-  ];
+  const results = await Promise.all([
+    resend.emails.send(customerMsg),
+    resend.emails.send(businessMsg),
+  ]);
 
-  // augment customer HTML with Google Calendar link
-  customerMsg.html = customerHtml + `<p><a href="${googleCalendarUrl}">Add to Google Calendar</a></p>`;
-
-  await Promise.all([sgMail.send(customerMsg), sgMail.send(businessMsg)]);
+  const failure = results.find((result) => result.error);
+  if (failure?.error) {
+    throw new Error(`Resend email failed: ${failure.error.message}`);
+  }
 }
 
 function escapeIcs(s?: string) {
   if (!s) return '';
-  return String(s).replace(/\\n/g, '\\n').replace(/,/g, '\\,');
+  return String(s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
+}
+
+export async function sendBookingCancellation(booking: Booking, reason: string) {
+  if (!RESEND_API_KEY) throw new Error('Resend is not configured. Set RESEND_API_KEY.');
+  const safeName = escapeHtml(booking.name);
+  const safeService = escapeHtml(booking.service);
+  const safeReason = escapeHtml(reason).replace(/\n/g, '<br/>');
+  const result = await resend.emails.send({
+    from: SENDER_EMAIL,
+    to: [booking.email],
+    replyTo: BUSINESS_EMAIL,
+    subject: `Your ${booking.service} booking has been cancelled`,
+    html: `
+      <p>Hi ${safeName},</p>
+      <p>Your <strong>${safeService}</strong> appointment scheduled for
+      <strong>${booking.date} at ${booking.time}</strong> has been cancelled.</p>
+      <p><strong>Reason:</strong><br/>${safeReason}</p>
+      <p>If you have questions or would like to choose another time, reply to this email or book a new appointment on our website.</p>
+      <p>We’re sorry for the inconvenience.<br/>Stanbrough Sparkle</p>
+    `,
+  });
+  if (result.error) throw new Error(`Resend cancellation email failed: ${result.error.message}`);
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  })[character] || character);
 }
 
 function formatAddressForIcs(b: Booking) {
@@ -120,7 +154,7 @@ function formatAddressForIcs(b: Booking) {
 }
 
 function buildGoogleCalendarUrl(opts: { title: string; details?: string; location?: string; start: Date; end: Date }) {
-  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const fmt = (d: Date) => d.toISOString().slice(0, 19).replace(/[-:]/g, '');
   const dates = `${fmt(opts.start)}/${fmt(opts.end)}`;
   const params = new URLSearchParams({
     action: 'TEMPLATE',
@@ -128,6 +162,7 @@ function buildGoogleCalendarUrl(opts: { title: string; details?: string; locatio
     details: opts.details || '',
     location: opts.location || '',
     dates,
+    ctz: BUSINESS_TIME_ZONE,
   } as any);
   return `https://www.google.com/calendar/render?${params.toString()}`;
 }

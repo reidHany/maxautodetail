@@ -4,6 +4,7 @@ import { BookingPage } from './pages/BookingPage';
 import { AdminPanel } from './components/AdminPanel';
 import { Booking } from './components/RequestForm';
 import { Footer } from './components/Footer';
+import { BookingSuccess } from './components/BookingSuccess';
 
 function App() {
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -20,25 +21,19 @@ function App() {
       {route === 'admin' ? (
         <AdminPanel onLogout={() => (window.location.hash = '#home')} />
       ) : route === 'book' ? (
-        <BookingPage onBookingComplete={setBooking} />
+        booking ? (
+          <BookingSuccess booking={booking} onBackHome={() => {
+            setBooking(null);
+            window.location.hash = '#home';
+          }} />
+        ) : (
+          <BookingPage onBookingComplete={setBooking} />
+        )
       ) : (
-        <HomePage onBookNow={() => (window.location.hash = '#book')} />
-      )}
-      {booking && route === 'book' && (
-        <section className="confirmation-card booking-confirmation">
-          <h2>Booking confirmed!</h2>
-          <p>
-            {booking.name}, your {booking.service} is scheduled for {booking.date} at {booking.time}.
-          </p>
-          <div className="calendar-links">
-            <a className="button" href={booking.googleCalendarUrl} target="_blank" rel="noreferrer">
-              Add to Google Calendar
-            </a>
-            <a className="button" href={booking.icsUrl} download="max-autodetail-booking.ics">
-              Download Apple Calendar Event
-            </a>
-          </div>
-        </section>
+        <HomePage onBookNow={() => {
+          setBooking(null);
+          window.location.hash = '#book';
+        }} />
       )}
       {route !== 'admin' && <Footer />}
     </div>

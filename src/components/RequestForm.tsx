@@ -7,13 +7,13 @@ export interface Booking {
   service: string;
   date: string;
   time: string;
-  // structured address fields
   address?: string;
   addressLine1?: string;
   addressLine2?: string;
   city?: string;
   state?: string;
   zip?: string;
+  transportService?: boolean;
   notes?: string;
   googleCalendarUrl: string;
   icsUrl: string;
@@ -24,12 +24,15 @@ interface BookingFormProps {
 }
 
 const services = [
-  { title: 'Exterior Detail', durationMinutes: 120 },
-  { title: 'Interior Detail', durationMinutes: 120 },
-  { title: 'Ceramic Coating', durationMinutes: 180 },
+  { title: 'Exterior Refresh', durationMinutes: 120 },
+  { title: 'Interior Refresh', durationMinutes: 120 },
+  { title: 'Complete Refresh', durationMinutes: 180 },
 ];
 
-const defaultTimes = ['09:00', '11:00', '13:00', '15:00', '17:00'];
+const defaultTimes = Array.from({ length: 13 }, (_, index) => `${String(index + 8).padStart(2, '0')}:00`);
+const minimumBookingDate = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(new Date());
 
 function formatToAmPm(time24: string) {
   // time24 expected in HH:MM
@@ -44,21 +47,21 @@ function formatGoogleDateTime(date: Date) {
 }
 
 function buildGoogleCalendarUrl(booking: Omit<Booking, 'id' | 'googleCalendarUrl' | 'icsUrl'>, endDate: Date) {
-  const title = encodeURIComponent(`${booking.service} at StanBrough Sparkle`);
-  const details = encodeURIComponent(`Appointment for ${booking.name}\nAddress: ${booking.address || 'StanBrough Sparkle'}\nNotes: ${booking.notes || 'None'}`);
+  const title = encodeURIComponent(`${booking.service} at Stanbrough Sparkle`);
+  const details = encodeURIComponent(`Appointment for ${booking.name}\nAddress: ${booking.address || 'Stanbrough Sparkle'}\nNotes: ${booking.notes || 'None'}`);
   const dates = `${formatGoogleDateTime(new Date(`${booking.date}T${booking.time}:00`))}/${formatGoogleDateTime(endDate)}`;
-  const location = encodeURIComponent(booking.address || 'StanBrough Sparkle');
+  const location = encodeURIComponent(booking.address || 'Stanbrough Sparkle');
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
 }
 
 function buildIcsContent(booking: Omit<Booking, 'id' | 'googleCalendarUrl' | 'icsUrl'>, endDate: Date) {
   const start = `${booking.date.replace(/-/g, '')}T${booking.time.replace(/:/g, '')}00`;
   const end = `${endDate.toISOString().slice(0, 19).replace(/[-:]/g, '')}`;
-  const location = booking.address || 'StanBrough Sparkle';
+  const location = booking.address || 'Stanbrough Sparkle';
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//StanBrough Sparkle//EN',
+    'PRODID:-//Stanbrough Sparkle//EN',
     'BEGIN:VEVENT',
     `UID:${Date.now()}@stanbroughsparkle`,
     `DTSTAMP:${new Date().toISOString().slice(0, 19).replace(/[-:]/g, '')}Z`,
@@ -76,7 +79,7 @@ export function RequestForm({ onSubmit }: BookingFormProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [service, setService] = useState(services[0].title);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(minimumBookingDate);
   const [time, setTime] = useState(defaultTimes[0]);
   // manual address fields
   const [addressLine1, setAddressLine1] = useState('');
@@ -88,21 +91,31 @@ export function RequestForm({ onSubmit }: BookingFormProps) {
   const [availableTimes, setAvailableTimes] = useState<string[]>(defaultTimes);
   const [status, setStatus] = useState<string | null>(null);
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchAvailability() {
-      const response = await fetch(`/api/available-times?date=${encodeURIComponent(date)}`);
-      if (!response.ok) {
+      try {
+        const params = new URLSearchParams({ date, service });
+        const response = await fetch(`/api/available-times?${params}`, { signal: controller.signal });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          setAvailableTimes([]);
+          setStatus(body?.message || 'Unable to load available times.');
+          return;
+        }
+        const data = await response.json();
+        setAvailableTimes(data.availableTimes);
+        setTime((current) => data.availableTimes.includes(current) ? current : (data.availableTimes[0] ?? ''));
+        setStatus(null);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         setAvailableTimes([]);
-        return;
-      }
-      const data = await response.json();
-      setAvailableTimes(data.availableTimes);
-      if (!data.availableTimes.includes(time)) {
-        setTime(data.availableTimes[0] ?? '');
+        setStatus('Unable to connect to the scheduling server.');
       }
     }
 
     fetchAvailability();
-  }, [date, time]);
+    return () => controller.abort();
+  }, [date, service]);
 
   const selectedService = useMemo(
     () => services.find((item) => item.title === service) ?? services[0],
@@ -114,6 +127,10 @@ export function RequestForm({ onSubmit }: BookingFormProps) {
 
     if (!time) {
       setStatus('Please choose an available time slot.');
+      return;
+    }
+    if (date < minimumBookingDate) {
+      setStatus('Please choose today or a future date.');
       return;
     }
     // validate manual address fields
@@ -159,7 +176,7 @@ export function RequestForm({ onSubmit }: BookingFormProps) {
     setName('');
     setEmail('');
     setService(services[0].title);
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(minimumBookingDate);
     setAddressLine1('');
     setAddressLine2('');
     setCity('');
@@ -203,7 +220,7 @@ export function RequestForm({ onSubmit }: BookingFormProps) {
         </label>
         <label>
           Choose a date
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+          <input type="date" min={minimumBookingDate} value={date} onChange={(event) => setDate(event.target.value)} required />
         </label>
         <label>
           Available times
@@ -235,57 +252,10 @@ export function RequestForm({ onSubmit }: BookingFormProps) {
           State
           <select value={stateVal} onChange={(e) => setStateVal(e.target.value)} required>
             <option value="">Select state</option>
-            <option value="AL">Alabama (AL)</option>
-            <option value="AK">Alaska (AK)</option>
-            <option value="AZ">Arizona (AZ)</option>
-            <option value="AR">Arkansas (AR)</option>
-            <option value="CA">California (CA)</option>
-            <option value="CO">Colorado (CO)</option>
-            <option value="CT">Connecticut (CT)</option>
-            <option value="DE">Delaware (DE)</option>
-            <option value="DC">District of Columbia (DC)</option>
-            <option value="FL">Florida (FL)</option>
-            <option value="GA">Georgia (GA)</option>
-            <option value="HI">Hawaii (HI)</option>
-            <option value="ID">Idaho (ID)</option>
-            <option value="IL">Illinois (IL)</option>
-            <option value="IN">Indiana (IN)</option>
             <option value="IA">Iowa (IA)</option>
-            <option value="KS">Kansas (KS)</option>
-            <option value="KY">Kentucky (KY)</option>
-            <option value="LA">Louisiana (LA)</option>
-            <option value="ME">Maine (ME)</option>
-            <option value="MD">Maryland (MD)</option>
-            <option value="MA">Massachusetts (MA)</option>
-            <option value="MI">Michigan (MI)</option>
             <option value="MN">Minnesota (MN)</option>
-            <option value="MS">Mississippi (MS)</option>
-            <option value="MO">Missouri (MO)</option>
-            <option value="MT">Montana (MT)</option>
             <option value="NE">Nebraska (NE)</option>
-            <option value="NV">Nevada (NV)</option>
-            <option value="NH">New Hampshire (NH)</option>
-            <option value="NJ">New Jersey (NJ)</option>
-            <option value="NM">New Mexico (NM)</option>
-            <option value="NY">New York (NY)</option>
-            <option value="NC">North Carolina (NC)</option>
-            <option value="ND">North Dakota (ND)</option>
-            <option value="OH">Ohio (OH)</option>
-            <option value="OK">Oklahoma (OK)</option>
-            <option value="OR">Oregon (OR)</option>
-            <option value="PA">Pennsylvania (PA)</option>
-            <option value="RI">Rhode Island (RI)</option>
-            <option value="SC">South Carolina (SC)</option>
             <option value="SD">South Dakota (SD)</option>
-            <option value="TN">Tennessee (TN)</option>
-            <option value="TX">Texas (TX)</option>
-            <option value="UT">Utah (UT)</option>
-            <option value="VT">Vermont (VT)</option>
-            <option value="VA">Virginia (VA)</option>
-            <option value="WA">Washington (WA)</option>
-            <option value="WV">West Virginia (WV)</option>
-            <option value="WI">Wisconsin (WI)</option>
-            <option value="WY">Wyoming (WY)</option>
           </select>
         </label>
         <label>

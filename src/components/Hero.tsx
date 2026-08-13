@@ -6,10 +6,10 @@ export function Hero({ onBookNow }: HeroProps) {
   return (
     <section className="hero-section">
       <div className="hero-copy">
-        <p className="eyebrow">StanBrough Sparkle</p>
-        <h1>Elevated automotive detailing with a red-carpet finish.</h1>
+        <p>Your Local Siouxland Automotive Detailing Service</p>
+        <h1 className="eyebrow">Stanbrough Sparkle</h1>
         <p>
-          Precision detailing, premium service, and showroom results delivered with a modern luxury experience.
+          Your can trust us to provide a professional and thorough detailing service for your vehicle. We offer a range of services to keep your car looking its best, from exterior washes to complete interior and exterior detailing.
         </p>
         {onBookNow && (
           <button className="hero-button" type="button" onClick={onBookNow}>

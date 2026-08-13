@@ -5,6 +5,10 @@ export interface Booking {
   service: string;
   date: string;
   time: string;
+  durationMinutes: number;
+  status: 'confirmed' | 'cancelled';
+  cancellationReason?: string;
+  cancelledAt?: string;
   // structured address fields
   address?: string;
   addressLine1?: string;
@@ -12,6 +16,7 @@ export interface Booking {
   city?: string;
   state?: string;
   zip?: string;
+  transportService: boolean;
   notes?: string;
 }
 
@@ -27,6 +32,7 @@ export interface BookingPayload {
   city?: string;
   state?: string;
   zip?: string;
+  transportService?: boolean;
   notes?: string;
 }
 

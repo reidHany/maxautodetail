@@ -1,6 +1,8 @@
-import crypto from 'crypto';
+import 'dotenv/config';
+import crypto from 'node:crypto';
 
-const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMeNow!';
+const adminPassword = process.env.ADMIN_PASSWORD ?? '';
+if (!adminPassword) throw new Error('ADMIN_PASSWORD must be configured before the server can start.');
 const adminSessionTtlMs = 1000 * 60 * 30;
 const maxLoginAttempts = 5;
 const loginWindowMs = 1000 * 60 * 10;
@@ -12,11 +14,17 @@ export function getAdminPassword() {
   return adminPassword;
 }
 
+export function isAdminPasswordValid(candidate: string) {
+  const expected = Buffer.from(adminPassword);
+  const supplied = Buffer.from(candidate);
+  return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
+}
+
 export function getAdminTokenTtl() {
   return adminSessionTtlMs;
 }
 
-import type { IncomingHttpHeaders } from 'http';
+import type { IncomingHttpHeaders } from 'node:http';
 
 export function getIp(req: { headers: IncomingHttpHeaders; ip?: string }) {
   const header = req.headers['x-forwarded-for'];

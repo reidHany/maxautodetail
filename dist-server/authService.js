@@ -4,14 +4,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAdminPassword = getAdminPassword;
+exports.isAdminPasswordValid = isAdminPasswordValid;
 exports.getAdminTokenTtl = getAdminTokenTtl;
 exports.getIp = getIp;
 exports.recordLoginAttempt = recordLoginAttempt;
 exports.canAttemptLogin = canAttemptLogin;
 exports.createAdminToken = createAdminToken;
 exports.isAdminTokenValid = isAdminTokenValid;
-const crypto_1 = __importDefault(require("crypto"));
-const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMeNow!';
+require("dotenv/config");
+const node_crypto_1 = __importDefault(require("node:crypto"));
+const adminPassword = process.env.ADMIN_PASSWORD ?? '';
+if (!adminPassword)
+    throw new Error('ADMIN_PASSWORD must be configured before the server can start.');
 const adminSessionTtlMs = 1000 * 60 * 30;
 const maxLoginAttempts = 5;
 const loginWindowMs = 1000 * 60 * 10;
@@ -19,6 +23,11 @@ const loginAttempts = new Map();
 const adminSessions = new Map();
 function getAdminPassword() {
     return adminPassword;
+}
+function isAdminPasswordValid(candidate) {
+    const expected = Buffer.from(adminPassword);
+    const supplied = Buffer.from(candidate);
+    return expected.length === supplied.length && node_crypto_1.default.timingSafeEqual(expected, supplied);
 }
 function getAdminTokenTtl() {
     return adminSessionTtlMs;
@@ -49,7 +58,7 @@ function canAttemptLogin(ip) {
     return attempt.count < maxLoginAttempts;
 }
 function createAdminToken() {
-    const token = crypto_1.default.randomBytes(32).toString('hex');
+    const token = node_crypto_1.default.randomBytes(32).toString('hex');
     adminSessions.set(token, Date.now() + adminSessionTtlMs);
     return token;
 }

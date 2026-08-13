@@ -1,4 +1,5 @@
 import { Booking, RequestForm } from '../components/RequestForm';
+import { BookingRoad } from '../components/BookingRoad';
 
 interface BookingPageProps {
   onBookingComplete: (booking: Booking) => void;
@@ -7,11 +8,12 @@ interface BookingPageProps {
 export function BookingPage({ onBookingComplete }: BookingPageProps) {
   return (
     <section className="booking-page">
+      <BookingRoad />
       <div className="booking-hero">
         <div>
           <p className="eyebrow">Book Your Detail</p>
           <h1>Choose your date and time for premium auto detailing.</h1>
-          <p>Our team delivers showroom finish detail services with a luxury experience.</p>
+          <p>Choose on-site service or add convenient vehicle pickup and return for a seamless detailing experience.</p>
         </div>
       </div>
       <div className="booking-content">
@@ -21,6 +23,7 @@ export function BookingPage({ onBookingComplete }: BookingPageProps) {
             <ul>
               <li>Pick a service</li>
               <li>Choose an available date and time</li>
+              <li>Optionally add vehicle pickup and return</li>
               <li>Confirm your booking and add to calendar</li>
             </ul>
           </div>

@@ -100,6 +100,10 @@ export function SocialLinks() {
         const frame = Math.round(sequenceProgress * (count - 1));
         stage?.style.setProperty('--reveal-progress', revealProgress.toFixed(4));
         stage?.style.setProperty('--sequence-progress', sequenceProgress.toFixed(4));
+        // Keep the undistorted poster visible throughout the expansion, then
+        // crossfade once the full-screen canvas has been allocated.
+        const posterOpacity = Math.max(0, Math.min(1, (0.34 - progress) / 0.06));
+        stage?.style.setProperty('--poster-opacity', posterOpacity.toFixed(4));
         if (frame === paintedFrame) return;
 
         const img = loadFrame(frame);
@@ -191,6 +195,7 @@ export function SocialLinks() {
           <div className="video-compare-stage">
             <div className="video-stage-inner single before-film">
               <div className="compare-panel">
+                <img className="sequence-poster" src="/social/before_frames/frame_001.jpg" alt="" aria-hidden="true" />
                 <canvas ref={beforeCanvasRef} className="compare-canvas" aria-label="Before image" />
                 <div className="cinematic-vignette" />
               </div>
@@ -207,6 +212,7 @@ export function SocialLinks() {
           <div className="video-compare-stage">
             <div className="video-stage-inner single after-film">
               <div className="compare-panel">
+                <img className="sequence-poster" src="/social/after_frames/frame_001.jpg" alt="" aria-hidden="true" />
                 <canvas ref={afterCanvasRef} className="compare-canvas" aria-label="After image" />
                 <div className="cinematic-vignette" />
               </div>

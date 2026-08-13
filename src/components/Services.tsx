@@ -1,7 +1,7 @@
 const services = [
-  { title: 'Exterior Detail', description: 'Wash, clay bar, polish, and sealant for a showroom finish.' },
-  { title: 'Interior Detail', description: 'Deep-clean carpets, leather, trim, and vents.' },
-  { title: 'Ceramic Coating', description: 'Long-lasting paint protection with water beading.' },
+  { title: '$50 - Exterior Refresh', description: 'Wash and dry your vehicle\'s exterior including the tires and windows' },
+  { title: '$75 - Interior Refresh', description: 'Comprehensive Vacuuming & Cleaning and Stain Treatment' },
+  { title: '$120 - Complete Refresh', description: 'All of our services combined for the ultimate detailing experience' },
 ];
 
 export function Services() {

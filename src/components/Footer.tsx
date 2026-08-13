@@ -11,7 +11,7 @@ export function Footer() {
               <small>Automotive detailing</small>
             </span>
           </a>
-          <p>Elevated automotive care, meticulous craftsmanship, and a finish worth looking back at.</p>
+          <p>Your local Northwest Iowa automotive detailing service.</p>
           <a className="footer-cta" href="#book">Book your detail <span aria-hidden="true">→</span></a>
         </div>
 
@@ -24,7 +24,7 @@ export function Footer() {
         </nav>
 
         <div className="footer-column">
-          <p className="footer-heading">Follow the finish</p>
+          <p className="footer-heading">Follow Us!</p>
           <a href="https://www.facebook.com/share/1EwPhCTJ2U/?mibextid=wwXlfr" target="_blank" rel="noreferrer">Facebook <span aria-hidden="true">↗</span></a>
           <a href="https://www.instagram.com/stanbroughsparkle/" target="_blank" rel="noreferrer">Instagram <span aria-hidden="true">↗</span></a>
           <a href="https://www.tiktok.com/@stanbrough.sparkle/" target="_blank" rel="noreferrer">TikTok <span aria-hidden="true">↗</span></a>
@@ -33,7 +33,7 @@ export function Footer() {
 
       <div className="footer-bottom">
         <span>© {new Date().getFullYear()} Stanbrough Sparkle</span>
-        <span>Detailed with intention.</span>
+        <span>Website by Hany Web Developers</span>
       </div>
     </footer>
   );

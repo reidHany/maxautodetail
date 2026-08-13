@@ -12,3 +12,10 @@ coverage
 # Local video-processing tools (download FFmpeg separately when needed)
 tools/ffmpeg/
 tools/ffmpeg.zip
+
+# Local SQLite booking database and write-ahead log
+server/*.sqlite
+server/*.sqlite-shm
+server/*.sqlite-wal
+server/bookings.json
+server/availability.json
