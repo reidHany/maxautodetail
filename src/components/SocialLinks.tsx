@@ -20,6 +20,8 @@ export function SocialLinks() {
   const beforeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const afterCanvasRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 640px)').matches;
+
     const setupScrubber = async (folder: string, manifestPath: string, canvasRef: React.RefObject<HTMLCanvasElement | null>, containerRef: React.RefObject<HTMLDivElement | null>) => {
       const manifest = await loadManifest(manifestPath);
       const count = (manifest && manifest.frames) || 0;
@@ -67,7 +69,7 @@ export function SocialLinks() {
         // canvas for every pixel of the expansion causes severe scroll jank.
         if (!force && renderedProgress >= 0 && getRevealProgress(renderedProgress) < 0.99) return;
         const rect = canvas.getBoundingClientRect();
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
         const nextWidth = Math.round(rect.width * dpr);
         const nextHeight = Math.round(rect.height * dpr);
         if (canvas.width === nextWidth && canvas.height === nextHeight) return;
@@ -82,7 +84,7 @@ export function SocialLinks() {
 
       const drawImage = (img: HTMLImageElement) => {
         if (!img.complete || !img.naturalWidth) return;
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
         // Preserve the portrait composition. Fitting by height avoids blowing a
@@ -96,26 +98,36 @@ export function SocialLinks() {
       const paint = (progress: number) => {
         // Expand, play at full screen, then return to the portrait card.
         const revealProgress = getRevealProgress(progress);
-        const sequenceProgress = Math.max(0, Math.min(1, (progress - 0.34) / 0.44));
+        // Desktop reserves the opening portion for its fullscreen reveal. The
+        // compact mobile card has no reveal, so begin advancing frames almost
+        // as soon as it becomes sticky.
+        const sequenceStart = isMobile ? 0.035 : 0.34;
+        // On mobile, use essentially the full pinned distance so the section
+        // cannot release until the final frame has been reached.
+        const sequenceDuration = isMobile ? 0.96 : 0.44;
+        const sequenceProgress = Math.max(0, Math.min(1, (progress - sequenceStart) / sequenceDuration));
         const frame = Math.round(sequenceProgress * (count - 1));
         stage?.style.setProperty('--reveal-progress', revealProgress.toFixed(4));
         stage?.style.setProperty('--sequence-progress', sequenceProgress.toFixed(4));
         // Keep the undistorted poster visible throughout the expansion, then
         // crossfade once the full-screen canvas has been allocated.
-        const posterOpacity = Math.max(0, Math.min(1, (0.34 - progress) / 0.06));
+        const posterFadeEnd = isMobile ? 0.075 : 0.34;
+        const posterFadeDuration = isMobile ? 0.04 : 0.06;
+        const posterOpacity = Math.max(0, Math.min(1, (posterFadeEnd - progress) / posterFadeDuration));
         stage?.style.setProperty('--poster-opacity', posterOpacity.toFixed(4));
         if (frame === paintedFrame) return;
 
         const img = loadFrame(frame);
         // Keep a small buffer in the likely direction of travel.
         const direction = targetProgress >= renderedProgress ? 1 : -1;
-        for (let offset = 1; offset <= 5; offset += 1) {
+        const preloadDistance = isMobile ? 2 : 5;
+        for (let offset = 1; offset <= preloadDistance; offset += 1) {
           const nearby = frame + offset * direction;
           if (nearby >= 0 && nearby < count) loadFrame(nearby);
         }
         if (!img.complete || !img.naturalWidth) return;
 
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
