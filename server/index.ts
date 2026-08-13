@@ -16,7 +16,9 @@ if (process.env.NODE_ENV === 'production') {
   const required = ['ADMIN_PASSWORD', 'RESEND_API_KEY', 'SENDER_EMAIL', 'ALLOWED_ORIGINS'];
   const missing = required.filter((name) => !process.env[name]);
   if (missing.length) throw new Error(`Missing required production configuration: ${missing.join(', ')}`);
-  if (process.env.SENDER_EMAIL === 'onboarding@resend.dev') throw new Error('Production SENDER_EMAIL must use a verified domain.');
+  if (process.env.SENDER_EMAIL === 'onboarding@resend.dev') {
+    console.warn('SENDER_EMAIL is using Resend onboarding mode. Email delivery is limited to the address associated with the Resend account until a custom domain is verified.');
+  }
 }
 
 app.set('trust proxy', 1);
