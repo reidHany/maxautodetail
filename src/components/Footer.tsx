@@ -5,10 +5,8 @@ export function Footer() {
       <div className="footer-main">
         <div className="footer-brand">
           <a className="footer-logo" href="#home" aria-label="Stanbrough Sparkle home">
-            <span className="footer-mark">SS</span>
-            <span>
-              <strong>Stanbrough Sparkle</strong>
-              <small>Automotive detailing</small>
+            <span className="footer-mark" aria-hidden="true">
+              <img src="/social/logo-white.png" alt="" />
             </span>
           </a>
           <p>Your local Northwest Iowa automotive detailing service.</p>
